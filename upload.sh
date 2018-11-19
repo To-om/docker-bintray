@@ -2,30 +2,80 @@
 
 set -e
 
-die() {
-	echo $* >&2
+help() {
+	cat <<-_EOF_
+	Upload file to Bintray
+	Udate: $0 [OPTION...]
+	Arguments:
+		-f, --file			File to upload
+		-u, --user			User name for Bintray authentication
+		-k, --key)     		API key for Bintray authentication
+		-u, --url)      	URL where the file will be uploaded, if absent,
+		                    the URL is build from other arguments
+		-s, --subject)		Subject where the file will be uploaded
+		-r, --repo)			Repository where the file will be uploaded
+		-p, --package)		Package where the file will be uploaded
+		-d, --dest-file)	Path and name of the destination file
+		--base-url)			Base URL of Bintray
+		                    (default: https://api.bintray.com)
+		-t, --type)			Resource type (content or maven)
+		                    (default: content)
+		-v, --version)		Version of the uploaded file
+		-e, --extra-param)	Additional parameter, can be invoked several times
+		-h, --help)			This message
+	_EOF_
 	exit 1
 }
 
-[ -z "$PLUGIN_FILE"    ] && die 'No file to upload (setting "file")'
-[ -z "$PLUGIN_USER"    ] && die 'No user configured (setting "user")'
-[ -z "$PLUGIN_API_KEY" ] && die 'No API key configured (setting "api_key")'
+die() {
+	echo $* >&2
+	exit 2
+}
 
-if [ -z "$PLUGIN_URL" ]; then
+IFS=',' read -r -a EXTRA_PARAM <<< $PLUGIN_EXTRA_PARAM
+
+while [[ $# -gt 0 ]]; do
+	case $1 in
+		-f|--file)			PLUGIN_FILE=$2;			shift 2;;
+		-u|--user)			PLUGIN_USER=$2;			shift 2;;
+		-k|--key)     		PLUGIN_API_KEY=$2;		shift 2;;
+		-u|--url)      		PLUGIN_URL=$2;			shift 2;;
+		-s|--subject)		PLUGIN_SUBJECT=$2;		shift 2;;
+		-r|--repo)			PLUGIN_REPO=$2;			shift 2;;
+		-p|--package)		PLUGIN_PACKAGE=$2;		shift 2;;
+		-d|--dest-file)		PLUGIN_DEST_FILE=$2;	shift 2;;
+		--base-url)			PLUGIN_BASE_URL=$2;		shift 2;;
+		-t|--type)			PLUGIN_TYPE=$2;			shift 2;;
+		-v|--version)		PLUGIN_VERSION=$2;		shift 2;;
+		-e|--extra-param)	EXTRA_PARAM+=($2);		shift 2;;
+		-h|--help)			help;					shift 1;;
+	esac
+done
+
+[[ -z "$PLUGIN_FILE"    ]] && die "No file to upload (setting \"file\")"
+[[ -r "$PLUGIN_FILE"    ]] || die "The file doesn't exist or is unreadable"
+[[ -z "$PLUGIN_USER"    ]] && die "No user configured (setting \"user\")"
+[[ -z "$PLUGIN_API_KEY" ]] && die "No API key configured (setting \"api_key\")"
+
+if [[ -z "$PLUGIN_URL" ]]; then
 	SUBJECT=${PLUGIN_SUBJECT:-$DRONE_REPO_NAMESPACE}
 	REPO=${PLUGIN_REPO:-$DRONE_REPO_NAME}
-	[ -z "$PLUGIN_PACKAGE" ] && die 'No package configured (setting "package")'
+	[[ -z "$PLUGIN_PACKAGE" ]] && die 'No package configured (setting "package")'
 	DEST_FILE=${PLUGIN_DEST_FILE:-$(basename $PLUGIN_FILE)}
-	PLUGIN_URL=${PLUGIN_BASE_URL:-https://api.bintray.com}/${PLUGIN_TYPE:-content}/$SUBJECT/$REPO/$PLUGIN_PACKAGE/${PLUGIN_VERSION:-$DRONE_TAG}/$DEST_FILE
+	PLUGIN_URL=${PLUGIN_BASE_URL:-https://api.bintray.com}/${PLUGIN_TYPE:-content}/${SUBJECT}/${REPO}/${PLUGIN_PACKAGE}/${PLUGIN_VERSION:-$DRONE_TAG}/${DEST_FILE}
 fi
 
-[ -n "$PLUGIN_DEB_DISTRIBUTION" ] && PLUGIN_URL=$PLUGIN_URL;deb_distribution=$PLUGIN_DEB_DISTRIBUTION
-[ -n "$PLUGIN_DEB_COMPONENT"    ] && PLUGIN_URL=$PLUGIN_URL;deb_component=$PLUGIN_DEB_COMPONENT
-[ -n "$PLUGIN_DEB_ARCHITECTURE" ] && PLUGIN_URL=$PLUGIN_URL;deb_architecture=$PLUGIN_DEB_ARTHITECTURE
-[ -n "$PLUGIN_PUBLISH"          ] && PLUGIN_URL=$PLUGIN_URL;publish=$PLUGIN_PUBLISH
-[ -n "$PLUGIN_OVERRIDE"         ] && PLUGIN_URL=$PLUGIN_URL;override=$PLUGIN_OVERRIDE
-[ -n "$PLUGIN_EXPLODE"          ] && PLUGIN_URL=$PLUGIN_URL;explode=$PLUGIN_EXPLODE
+[[ -n "$PLUGIN_DEB_DISTRIBUTION" ]] && PLUGIN_URL="$PLUGIN_URL;deb_distribution=$PLUGIN_DEB_DISTRIBUTION"
+[[ -n "$PLUGIN_DEB_COMPONENT"    ]] && PLUGIN_URL="$PLUGIN_URL;deb_component=$PLUGIN_DEB_COMPONENT"
+[[ -n "$PLUGIN_DEB_ARCHITECTURE" ]] && PLUGIN_URL="$PLUGIN_URL;deb_architecture=$PLUGIN_DEB_ARTHITECTURE"
+[[ -n "$PLUGIN_PUBLISH"          ]] && PLUGIN_URL="$PLUGIN_URL;publish=$PLUGIN_PUBLISH"
+[[ -n "$PLUGIN_OVERRIDE"         ]] && PLUGIN_URL="$PLUGIN_URL;override=$PLUGIN_OVERRIDE"
+[[ -n "$PLUGIN_EXPLODE"          ]] && PLUGIN_URL="$PLUGIN_URL;explode=$PLUGIN_EXPLODE"
+
+for PARAM in "${EXTRA_PARAM[@]}"; do
+	PLUGIN_URL="$PLUGIN_URL;$PARAM"
+done
 
 echo "Uploading $PLUGIN_FILE to $PLUGIN_URL"
 
-curl -T $PLUGIN_FILE -u$USER:$API_KEY $PLUGIN_URL
+curl -T $PLUGIN_FILE -u${USER}:${API_KEY} $PLUGIN_URL
