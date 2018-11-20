@@ -78,4 +78,4 @@ done
 
 echo "Uploading $PLUGIN_FILE to $PLUGIN_URL"
 
-curl -T $PLUGIN_FILE -u${USER}:${KEY} $PLUGIN_URL
+curl -T $PLUGIN_FILE -u${PLUGIN_USER}:${PLUGIN_KEY} $PLUGIN_URL
