@@ -38,7 +38,7 @@ while [[ $# -gt 0 ]]; do
 	case $1 in
 		-f|--file)			PLUGIN_FILE=$2;			shift 2;;
 		-u|--user)			PLUGIN_USER=$2;			shift 2;;
-		-k|--key)     		PLUGIN_API_KEY=$2;		shift 2;;
+		-k|--key)     		PLUGIN_KEY=$2;			shift 2;;
 		-u|--url)      		PLUGIN_URL=$2;			shift 2;;
 		-s|--subject)		PLUGIN_SUBJECT=$2;		shift 2;;
 		-r|--repo)			PLUGIN_REPO=$2;			shift 2;;
@@ -48,14 +48,14 @@ while [[ $# -gt 0 ]]; do
 		-t|--type)			PLUGIN_TYPE=$2;			shift 2;;
 		-v|--version)		PLUGIN_VERSION=$2;		shift 2;;
 		-e|--extra-param)	EXTRA_PARAM+=($2);		shift 2;;
-		-h|--help)			help;					shift 1;;
+		*)					help;					shift 1;;
 	esac
 done
 
-[[ -z "$PLUGIN_FILE"    ]] && die "No file to upload (setting \"file\")"
-[[ -r "$PLUGIN_FILE"    ]] || die "The file doesn't exist or is unreadable"
-[[ -z "$PLUGIN_USER"    ]] && die "No user configured (setting \"user\")"
-[[ -z "$PLUGIN_API_KEY" ]] && die "No API key configured (setting \"api_key\")"
+[[ -z "$PLUGIN_FILE" ]] && die "No file to upload (setting \"file\")"
+[[ -r "$PLUGIN_FILE" ]] || die "The file doesn't exist or is unreadable"
+[[ -z "$PLUGIN_USER" ]] && die "No user configured (setting \"user\")"
+[[ -z "$PLUGIN_KEY"  ]] && die "No API key configured (setting \"key\")"
 
 if [[ -z "$PLUGIN_URL" ]]; then
 	SUBJECT=${PLUGIN_SUBJECT:-$DRONE_REPO_NAMESPACE}
@@ -78,4 +78,4 @@ done
 
 echo "Uploading $PLUGIN_FILE to $PLUGIN_URL"
 
-curl -T $PLUGIN_FILE -u${USER}:${API_KEY} $PLUGIN_URL
+curl -T $PLUGIN_FILE -u${USER}:${KEY} $PLUGIN_URL
