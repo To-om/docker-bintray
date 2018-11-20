@@ -1,0 +1,56 @@
+#!/bin/bash
+
+set -e
+
+help() {
+	cat <<-_EOF_
+	Remove a package version in Bintray
+	Udate: $0 [OPTION...]
+	Arguments:
+		-u, --user			User name for Bintray authentication
+		-k, --key)     		API key for Bintray authentication
+		-u, --url)      	URL of the package version to remove, if absent,
+		                    the URL is build from other arguments
+		-s, --subject)		Subject where the package version will be removed
+		-r, --repo)			Repository where the package version will be removed
+		-p, --package)		Package name
+		--base-url)			Base URL of Bintray
+		                    (default: https://api.bintray.com)
+		-v, --version)		Version number to be removed
+		-h, --help)			This message
+	_EOF_
+	exit 1
+}
+
+die() {
+	echo $* >&2
+	exit 2
+}
+
+while [[ $# -gt 0 ]]; do
+	case $1 in
+		-u|--user)			PLUGIN_USER=$2;			shift 2;;
+		-k|--key)     		PLUGIN_API_KEY=$2;		shift 2;;
+		-u|--url)      		PLUGIN_URL=$2;			shift 2;;
+		-s|--subject)		PLUGIN_SUBJECT=$2;		shift 2;;
+		-r|--repo)			PLUGIN_REPO=$2;			shift 2;;
+		-p|--package)		PLUGIN_PACKAGE=$2;		shift 2;;
+		--base-url)			PLUGIN_BASE_URL=$2;		shift 2;;
+		-v|--version)		PLUGIN_VERSION=$2;		shift 2;;
+		-h|--help)			help;					shift 1;;
+	esac
+done
+
+[[ -z "$PLUGIN_USER"    ]] && die "No user configured (setting \"user\")"
+[[ -z "$PLUGIN_API_KEY" ]] && die "No API key configured (setting \"api_key\")"
+
+if [[ -z "$PLUGIN_URL" ]]; then
+	SUBJECT=${PLUGIN_SUBJECT:-$DRONE_REPO_NAMESPACE}
+	REPO=${PLUGIN_REPO:-$DRONE_REPO_NAME}
+	[[ -z "$PLUGIN_PACKAGE" ]] && die 'No package configured (setting "package")'
+	PLUGIN_URL=${PLUGIN_BASE_URL:-https://api.bintray.com}/packages/${SUBJECT}/${REPO}/${PLUGIN_PACKAGE}/versions/${PLUGIN_VERSION:-$DRONE_TAG}
+fi
+
+echo "Deleting version from URL $PLUGIN_URL"
+
+curl -XDELETE -u${USER}:${API_KEY} $PLUGIN_URL
